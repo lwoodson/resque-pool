@@ -2,3 +2,8 @@ foo: 1
 bar: 2
 "foo,bar,baz": 4
 
+high_list: N across all workers across all servers
+medium_list: N across all workers across all servers
+low_list: N across all workers across all servers
+email_list: N across all workers across all servers
+

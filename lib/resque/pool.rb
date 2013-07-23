@@ -19,6 +19,7 @@ module Resque
 
     def initialize(config)
       init_config(config)
+      # TODO this should be a distributed hash stored in redis.
       @workers = {}
       procline "(initialized)"
     end
@@ -51,6 +52,9 @@ module Resque
     @config_files = ["resque-pool.yml", "config/resque-pool.yml"]
     class << self; attr_accessor :config_files; end
     def self.choose_config_file
+      # TODO this env variable can be used to override the normal yaml file loc.
+      #      this should allow ops to push up a custom yaml file if they need to
+      #      temporarily override things.
       if ENV["RESQUE_POOL_CONFIG"]
         ENV["RESQUE_POOL_CONFIG"]
       else
@@ -84,6 +88,9 @@ module Resque
 
     def load_config
       if config_file
+        # TODO Create a distributed hash in redis.
+        #      We first create the distributed hash, and if its empty, initalize
+        #      it with the config file loaded from the file system.
         @config = YAML.load_file(config_file)
       else
         @config ||= {}
@@ -270,12 +277,18 @@ module Resque
     def maintain_worker_count
       all_known_queues.each do |queues|
         delta = worker_delta_for(queues)
-        spawn_missing_workers_for(queues) if delta > 0
-        quit_excess_workers_for(queues)   if delta < 0
+        # TODO The queues sent to spawn_missing_workers_for should be rotated
+        #      to avoid deadlock/starvation.
+        spawn_missing_workers_for(rotate(queues)) if delta > 0
+        # TODO sort rotated queue lists to compare apples to apples.  This
+        #      probably will need to be done elsewhere, too.
+        quit_excess_workers_for(queues.sort)   if delta < 0
       end
     end
 
     def all_known_queues
+      # The keys in this case will be the individual jobs queues mapped to a
+      # high/medium/low priority as retrieved from the yaml file.
       config.keys | workers.keys
     end
 
